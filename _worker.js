@@ -281,6 +281,47 @@ async function nginx() {
 </html>`;
 }
 
+async function checkRequestRate(ip, store) {
+  if (!ip || !store) {
+    console.error("Missing required parameters for rate limiting");
+    return false;
+  }
+
+  const key = `rate_limit:${ip}`;
+  const now = Date.now();
+  const windowMs = 60 * 1000; // 1分钟窗口期
+  const limit = 3000; // 最大请求次数
+
+  try {
+    let record = await store.get(key, { type: "json" });
+    
+    if (!record) {
+      record = {
+        count: 1,
+        timestamp: now
+      };
+    } else {
+      if (now - record.timestamp > windowMs) {
+        record = {
+          count: 1,
+          timestamp: now
+        };
+      } else {
+        record.count += 1;
+      }
+    }
+
+    await store.put(key, JSON.stringify(record), {
+      expirationTtl: 60 // 1分钟后自动过期
+    });
+
+    return record.count > limit;
+  } catch (error) {
+    console.error(`Rate limit check error for IP ${ip}: ${error.message}`);
+    return false;
+  }
+}
+
 export default {
   async fetch(request, env, ctx) {
     try {
@@ -296,9 +337,26 @@ export default {
         REGION_WHITELIST_REGEX,
         REGION_BLACKLIST_REGEX,
         DEBUG = false,
+        RATE_LIMIT_ENABLED = false, // 新增：是否启用频率限制
       } = env;
+
       const url = new URL(request.url);
       const originHostname = url.hostname;
+      const clientIp = request.headers.get("cf-connecting-ip");
+
+      // 检查请求频率
+      if (RATE_LIMIT_ENABLED && env.RATE_LIMIT_STORE) {
+        const isRateLimited = await checkRequestRate(clientIp, env.RATE_LIMIT_STORE);
+        if (isRateLimited) {
+          logError(request, "Rate limited");
+          return new Response(await nginx(), {
+            headers: {
+              "Content-Type": "text/html; charset=utf-8",
+            },
+          });
+        }
+      }
+
       if (
         !PROXY_HOSTNAME ||
         (PATHNAME_REGEX && !new RegExp(PATHNAME_REGEX).test(url.pathname)) ||
@@ -311,13 +369,9 @@ export default {
             request.headers.get("user-agent").toLowerCase()
           )) ||
         (IP_WHITELIST_REGEX &&
-          !new RegExp(IP_WHITELIST_REGEX).test(
-            request.headers.get("cf-connecting-ip")
-          )) ||
+          !new RegExp(IP_WHITELIST_REGEX).test(clientIp)) ||
         (IP_BLACKLIST_REGEX &&
-          new RegExp(IP_BLACKLIST_REGEX).test(
-            request.headers.get("cf-connecting-ip")
-          )) ||
+          new RegExp(IP_BLACKLIST_REGEX).test(clientIp)) ||
         (REGION_WHITELIST_REGEX &&
           !new RegExp(REGION_WHITELIST_REGEX).test(
             request.headers.get("cf-ipcountry")
@@ -336,6 +390,7 @@ export default {
               },
             });
       }
+
       url.host = PROXY_HOSTNAME;
       url.protocol = PROXY_PROTOCOL;
       const newRequest = createNewRequest(

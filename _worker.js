@@ -281,7 +281,7 @@ async function nginx() {
 </html>`;
 }
 
-async function checkRequestRate(ip, store) {
+async function checkRequestRate(ip, store, env) {
   if (!ip || !store) {
     console.error("Missing required parameters for rate limiting");
     return false;
@@ -289,8 +289,9 @@ async function checkRequestRate(ip, store) {
 
   const key = `rate_limit:${ip}`;
   const now = Date.now();
-  const windowMs = 60 * 1000; // 1分钟窗口期
-  const limit = 3; // 最大请求次数
+  // 从环境变量读取配置，并提供默认值
+  const windowMs = parseInt(env.RATE_LIMIT_WINDOW_MS) || 60 * 1000; // 默认 
+  const limit = parseInt(env.RATE_LIMIT_MAX_REQUESTS) || 15; // 默认 
 
   try {
     let record = await store.get(key, { type: "json" });
@@ -345,8 +346,9 @@ export default {
       const clientIp = request.headers.get("cf-connecting-ip");
 
       // 检查请求频率
-      if ((RATE_LIMIT_ENABLED === "true" || RATE_LIMIT_ENABLED === true) && env.RATE_LIMIT_STORE) { // #■ 增加字符串比较
-        const isRateLimited = await checkRequestRate(clientIp, env.RATE_LIMIT_STORE);
+      if ((RATE_LIMIT_ENABLED === "true" || RATE_LIMIT_ENABLED === true) && env.RATE_LIMIT_STORE) {
+        const isRateLimited = await checkRequestRate(clientIp, env.RATE_LIMIT_STORE, env);
+
 
         if (isRateLimited) {
           logError(request, "Rate limited");

@@ -289,9 +289,8 @@ async function checkRequestRate(ip, store) {
 
   const key = `rate_limit:${ip}`;
   const now = Date.now();
-  // 从环境变量获取配置，并提供默认值
-  const windowMs = (env.RATE_LIMIT_WINDOW_MS || 60) * 1000; // 默认60秒
-  const limit = env.RATE_LIMIT_MAX_REQUESTS || 10; // 默认10次
+  const windowMs = 60 * 1000; // 1分钟窗口期
+  const limit = 3; // 最大请求次数
 
   try {
     let record = await store.get(key, { type: "json" });
@@ -339,8 +338,6 @@ export default {
         REGION_BLACKLIST_REGEX,
         DEBUG = false,
         RATE_LIMIT_ENABLED = false, // 新增：是否启用频率限制
-        RATE_LIMIT_WINDOW_MS = 60,    // 新增：时间窗口（秒）
-        RATE_LIMIT_MAX_REQUESTS = 10,  // 新增：最大请求次数
       } = env;
 
       const url = new URL(request.url);
@@ -348,8 +345,9 @@ export default {
       const clientIp = request.headers.get("cf-connecting-ip");
 
       // 检查请求频率
-      if (RATE_LIMIT_ENABLED && env.RATE_LIMIT_STORE) {
+      if ((RATE_LIMIT_ENABLED === "true" || RATE_LIMIT_ENABLED === true) && env.RATE_LIMIT_STORE) { // #■ 增加字符串比较
         const isRateLimited = await checkRequestRate(clientIp, env.RATE_LIMIT_STORE);
+
         if (isRateLimited) {
           logError(request, "Rate limited");
           return new Response(await nginx(), {

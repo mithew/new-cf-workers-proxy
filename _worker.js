@@ -80,27 +80,203 @@ async function replaceResponseText(
 }
 
 async function nginx() {
+  // 生成随机的服务器信息
+  const generateServerInfo = () => {
+    const servers = ['nginx/1.20.1', 'Apache/2.4.41', 'LiteSpeed/6.0.11'];
+    const os = ['Ubuntu Server 20.04 LTS', 'CentOS 8.4', 'Debian 11'];
+    const domains = ['us-east.server.net', 'eu-central.server.net', 'asia-east.server.net'];
+    return {
+      server: servers[Math.floor(Math.random() * servers.length)],
+      os: os[Math.floor(Math.random() * os.length)],
+      domain: domains[Math.floor(Math.random() * domains.length)],
+      uptime: Math.floor(Math.random() * 300) + ' days',
+      load: (Math.random() * 2).toFixed(2)
+    };
+  };
+
+  const serverInfo = generateServerInfo();
+  
   return `<!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-<title>Welcome to nginx!</title>
-<style>
-html { color-scheme: light dark; }
-body { width: 35em; margin: 0 auto;
-font-family: Tahoma, Verdana, Arial, sans-serif; }
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>404 Not Found - System Error</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap');
+        
+        :root {
+            --primary: #00ff9d;
+            --secondary: #0066ff;
+            --background: #1a1a1a;
+            --text: #ffffff;
+        }
+        
+        body {
+            font-family: 'JetBrains Mono', monospace;
+            background-color: var(--background);
+            color: var(--text);
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow-x: hidden;
+        }
+        
+        .error-container {
+            max-width: 800px;
+            padding: 30px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 0 30px rgba(0, 255, 157, 0.1);
+            position: relative;
+            animation: containerFloat 3s ease-in-out infinite;
+        }
+        
+        @keyframes containerFloat {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+        }
+        
+        .error-code {
+            font-size: 72px;
+            color: var(--primary);
+            margin: 0;
+            font-weight: bold;
+            text-shadow: 0 0 10px rgba(0, 255, 157, 0.5);
+            animation: glitch 1s linear infinite;
+        }
+        
+        @keyframes glitch {
+            2%, 64% { transform: translate(2px,0) skew(0deg); }
+            4%, 60% { transform: translate(-2px,0) skew(0deg); }
+            62% { transform: translate(0,0) skew(5deg); }
+        }
+        
+        .error-title {
+            font-size: 24px;
+            margin: 20px 0;
+            color: var(--secondary);
+            position: relative;
+        }
+        
+        .error-details {
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            margin-top: 20px;
+            padding-top: 20px;
+            font-size: 16px;
+            line-height: 1.6;
+        }
+        
+        .server-info {
+            margin-top: 30px;
+            background: rgba(0, 0, 0, 0.3);
+            padding: 20px;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+        
+        .server-info p {
+            margin: 5px 0;
+            display: flex;
+            justify-content: space-between;
+        }
+        
+        .server-info span {
+            color: var(--primary);
+        }
+        
+        .matrix-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            opacity: 0.1;
+        }
+        
+        .status-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            background: var(--primary);
+            border-radius: 50%;
+            margin-right: 10px;
+            animation: blink 1s infinite;
+        }
+        
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+    </style>
 </head>
 <body>
-<h1>Welcome to nginx!</h1>
-<p>If you see this page, the nginx web server is successfully installed and
-working. Further configuration is required.</p>
-
-<p>For online documentation and support please refer to
-<a href="http://nginx.org/">nginx.org</a>.<br/>
-Commercial support is available at
-<a href="http://nginx.com/">nginx.com</a>.</p>
-
-<p><em>Thank you for using nginx.</em></p>
+    <canvas class="matrix-bg" id="matrixCanvas"></canvas>
+    <div class="error-container">
+        <div class="status-indicator"></div>
+        <h1 class="error-code">404</h1>
+        <p class="error-title">Resource Not Found</p>
+        <div class="error-details">
+            <p>The requested URL was not found on this server. The resource might have been removed, renamed, or temporarily unavailable.</p>
+            <p>Request ID: ${Math.random().toString(36).substring(2, 15)}</p>
+        </div>
+        <div class="server-info">
+            <p>Server: <span>${serverInfo.server}</span></p>
+            <p>Operating System: <span>${serverInfo.os}</span></p>
+            <p>Domain: <span>${serverInfo.domain}</span></p>
+            <p>Server Time: <span>${new Date().toUTCString()}</span></p>
+            <p>System Uptime: <span>${serverInfo.uptime}</span></p>
+            <p>Load Average: <span>${serverInfo.load}</span></p>
+            <p>Client IP: <span>${Array.from({length: 4}, () => Math.floor(Math.random() * 255)).join('.')}</span></p>
+            <p>Protocol: <span>HTTP/2.0</span></p>
+            <p>SSL/TLS Version: <span>TLS 1.3</span></p>
+        </div>
+    </div>
+    
+    <script>
+        // Matrix rain effect
+        const canvas = document.getElementById('matrixCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        
+        const chars = '0123456789ABCDEF';
+        const fontSize = 14;
+        const columns = canvas.width / fontSize;
+        const drops = Array(Math.floor(columns)).fill(1);
+        
+        function draw() {
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.05)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            ctx.fillStyle = '#0F0';
+            ctx.font = fontSize + 'px monospace';
+            
+            for(let i = 0; i < drops.length; i++) {
+                const text = chars[Math.floor(Math.random() * chars.length)];
+                ctx.fillText(text, i * fontSize, drops[i] * fontSize);
+                
+                if(drops[i] * fontSize > canvas.height && Math.random() > 0.975) {
+                    drops[i] = 0;
+                }
+                drops[i]++;
+            }
+        }
+        
+        setInterval(draw, 33);
+        
+        window.addEventListener('resize', () => {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        });
+    </script>
 </body>
 </html>`;
 }

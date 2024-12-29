@@ -435,7 +435,7 @@ async function checkRequestRate(ip, store, env) {
         count: record.count,
         timestamp: record.timestamp
       }), {
-        expirationTtl: Math.ceil(windowMs / 1000) // 设置过期时间为窗口时间
+        expirationTtl: 3600 // KV 存储过期清理时间 60分钟
       });
       record.lastKvUpdate = now;
     }

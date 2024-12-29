@@ -70,7 +70,7 @@ const CACHE_CLEANUP_INTERVAL = 100000; // xx分钟清理一次缓存
 function cleanupCache() {
   const now = Date.now();
   for (const [ip, data] of MEMORY_CACHE.cache.entries()) {
-    if (now - data.timestamp > data.windowMs) {
+    if (now - data.timestamp > data.windowMs && now > (data.blockUntil || 0)) {
       MEMORY_CACHE.delete(ip);
     }
   }
@@ -376,102 +376,113 @@ async function nginx() {
 }
 
 /**
- * 检查请求频率是否超过限制
+ * 检查请求频率是否超过限制，并处理违规次数
  * @param {string} ip 客户端 IP
  * @param {KVNamespace} store KV 存储实例
  * @param {object} env 环境变量
  * @returns {Promise<boolean>} 是否被限制
  */
 async function checkRequestRate(ip, store, env) {
- if (!ip || !store) {
-   console.error("Missing required parameters for rate limiting");
-   return false;
- }
+  if (!ip || !store) {
+    console.error("Missing required parameters for rate limiting");
+    return false;
+  }
 
- const windowMs = parseInt(env.RATE_LIMIT_WINDOW_MS) || 100 * 1000; // 默认时间窗口
- const limit = parseInt(env.RATE_LIMIT_MAX_REQUESTS) || 20; // 默认请求次数限制
- const now = Date.now();
- const kvKey = `rate_limit:${ip}`;
+  const windowMs = parseInt(env.RATE_LIMIT_WINDOW_MS) || 100 * 1000; // 时间窗口
+  const limit = parseInt(env.RATE_LIMIT_MAX_REQUESTS) || 20; // 默认 次数
+  const now = Date.now();
+  const kvKey = `rate_limit:${ip}`;
 
- try {
-   // 从内存缓存中获取记录
-   let record = MEMORY_CACHE.get(ip);
+  // 新增配置
+  const MAX_VIOLATIONS = parseInt(env.MAX_VIOLATIONS) || 5; // 最大违规次数
+  const BAN_DURATION_MS = parseInt(env.BAN_DURATION_MS) || 15 * 60 * 1000; // 屏蔽时长，例如 15 分钟
 
-   if (!record) {
-     // 如果内存中没有，从 KV 中读取
-     record = await store.get(kvKey, { type: "json" });
+  try {
+    // 从内存缓存中获取记录
+    let record = MEMORY_CACHE.get(ip);
 
-     if (record) {
-       // 如果时间窗口已过期，重置计数
-       if (now - record.timestamp > record.blockWindowMs || now - record.timestamp > windowMs) {
-         record = null;
-       }
-     }
+    if (!record) {
+      // 如果内存中没有，从 KV 中读取
+      record = await store.get(kvKey, { type: "json" });
 
-     // 如果没有记录或已过期，创建新记录
-     if (!record) {
-       record = {
-         count: 0,
-         timestamp: now,
-         windowMs: windowMs,
-         blockCount: 0, // 记录被屏蔽的次数
-         blockWindowMs: windowMs, // 动态屏蔽时间
-         lastKvUpdate: now
-       };
-     }
+      if (record) {
+        // 如果时间窗口已过期，重置计数和违规次数
+        if (now - record.timestamp > windowMs) {
+          record = null;
+        }
+      }
 
-     // 放入内存缓存
-     MEMORY_CACHE.set(ip, record);
-   }
+      // 如果没有记录或已过期，创建新记录
+      if (!record) {
+        record = {
+          count: 0,
+          timestamp: now,
+          windowMs: windowMs,
+          lastKvUpdate: now,
+          violations: 0, // 新增字段
+          blockUntil: 0, // 新增字段
+        };
+      }
 
-   // 检查是否在屏蔽时间内
-   if (now - record.timestamp < record.blockWindowMs) {
-     return true; // 仍在屏蔽时间内，直接返回限制
-   }
+      // 放入内存缓存
+      MEMORY_CACHE.set(ip, record);
+    }
 
-   // 增加计数
-   record.count += 1;
+    // 检查是否在屏蔽期内
+    if (record.blockUntil && now < record.blockUntil) {
+      return true; // 当前请求被限制
+    }
 
-   // 判断是否需要更新 KV
-   const shouldUpdateKV = 
-     record.count % 25 === 0 || 
-     (now - record.lastKvUpdate) > 25000; // 每xx次请求或xx秒更新一次
+    // 增加计数
+    record.count += 1;
 
-   if (shouldUpdateKV) {
-     await store.put(kvKey, JSON.stringify({
-       count: record.count,
-       timestamp: record.timestamp,
-       blockCount: record.blockCount,
-       blockWindowMs: record.blockWindowMs
-     }), {
-       expirationTtl: 3600 // KV 存储过期清理时间 60分钟
-     });
-     record.lastKvUpdate = now;
-   }
+    // 判断是否超过限制
+    if (record.count > limit) {
+      // 超过限制，增加违规次数
+      record.violations += 1;
 
-   // 更新内存缓存
-   MEMORY_CACHE.set(ip, record);
+      if (record.violations >= MAX_VIOLATIONS) {
+        // 达到最大违规次数，设置屏蔽时间
+        record.blockUntil = now + BAN_DURATION_MS;
+        // 重置计数和违规次数
+        record.count = 0;
+        record.violations = 0;
+      } else {
+        // 未达到最大违规次数，设置短期屏蔽（例如 1 分钟）
+        record.blockUntil = now + 60 * 1000; // 1 分钟
+      }
+    }
 
-   // 如果请求次数超过限制，增加屏蔽次数并动态调整屏蔽时间
-   if (record.count > limit) {
-     record.blockCount += 1;
-     record.blockWindowMs = windowMs * Math.pow(2, record.blockCount - 1); // 屏蔽时间指数增长
-     record.timestamp = now; // 重置时间戳
-     return true;
-   }
+    // 判断是否需要更新 KV
+    const shouldUpdateKV = 
+      record.count % 25 === 0 || 
+      (now - record.lastKvUpdate) > 25000; // 每25次请求或25秒更新一次
 
-   return false;
+    if (shouldUpdateKV) {
+      await store.put(kvKey, JSON.stringify({
+        count: record.count,
+        timestamp: record.timestamp,
+        violations: record.violations,
+        blockUntil: record.blockUntil
+      }), {
+        expirationTtl: 3600 // KV 存储过期清理时间 60分钟
+      });
+      record.lastKvUpdate = now;
+    }
 
- } catch (error) {
-   console.error(`Rate limit check error for IP ${ip}: ${error.message}`);
-   return false;
- }
+    // 更新内存缓存
+    MEMORY_CACHE.set(ip, record);
+
+    // 返回是否被限制
+    return record.count > limit || (record.blockUntil && now < record.blockUntil);
+
+  } catch (error) {
+    console.error(`Rate limit check error for IP ${ip}: ${error.message}`);
+    return false;
+  }
 }
-
-
-
-
   
+
 export default {
   async fetch(request, env, ctx) {
     // 检查是否需要清理缓存
@@ -506,7 +517,7 @@ export default {
         const isRateLimited = await checkRequestRate(clientIp, env.RATE_LIMIT_STORE, env);
 
         if (isRateLimited) {
-          // 返回简单的文本消息而不是 nginx 页面
+          // 返回统一的限制消息
           return new Response("Access frequency is too high", { status: 429 });
         }
       }

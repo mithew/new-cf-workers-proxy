@@ -351,14 +351,19 @@ export default {
 
 
         if (isRateLimited) {
-          logError(request, "Rate limited");
-          return new Response(await nginx(), {
-            headers: {
-              "Content-Type": "text/html; charset=utf-8",
-            },
-          });
+          return new Response("Access frequency is too high", { status: 429 }); #■ 返回简单的文本消息而不是nginx页面
         }
       }
+
+        if (PATHNAME_REGEX) {
+          if (url.pathname === "/" || url.pathname === "") {
+            return new Response(await nginx(), {
+              headers: { "Content-Type": "text/html; charset=utf-8" },
+            }); #■ 如果只访问域名，返回自定义nginx页面
+          } else if (!new RegExp(PATHNAME_REGEX).test(url.pathname)) {
+            return new Response("The requested resource does not exist", { status: 404 }); #■ 路径不匹配时返回简单的文本消息
+          }
+        }
 
       if (
         !PROXY_HOSTNAME ||

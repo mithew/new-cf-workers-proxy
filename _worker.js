@@ -404,7 +404,10 @@ async function checkRequestRate(ip, store, env) {
       if (record) {
         // 如果时间窗口已过期，重置计数
         if (now - record.timestamp > windowMs) {
-          record = null;
+          // 1.  重置 count; 2. 累加 totalCount
+          record.totalCount += record.count;   
+          record.count = 0;  
+          record.timestamp = now;  
         }
       }
 
@@ -412,6 +415,7 @@ async function checkRequestRate(ip, store, env) {
       if (!record) {
         record = {
           count: 0,
+          totalCount: 0, // #■ 初始化 totalCount 
           timestamp: now,
           windowMs: windowMs,
           lastKvUpdate: now
@@ -433,6 +437,7 @@ async function checkRequestRate(ip, store, env) {
     if (shouldUpdateKV) {
       await store.put(kvKey, JSON.stringify({
         count: record.count,
+        totalCount: record.totalCount, // #■ 更新 KV 中的 totalCount 
         timestamp: record.timestamp
       }), {
         expirationTtl: 3600 // KV 存储过期清理时间 60分钟

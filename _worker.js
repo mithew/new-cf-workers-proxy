@@ -76,8 +76,8 @@ function cleanupCache() {
   }
 }
 
-// 启动定期清理任务
-setInterval(cleanupCache, CACHE_CLEANUP_INTERVAL);
+// 记录上次清理缓存的时间
+let lastCleanupTime = 0;
 
 /**
  * 日志记录错误信息
@@ -453,6 +453,13 @@ async function checkRequestRate(ip, store, env) {
 
 export default {
   async fetch(request, env, ctx) {
+    // 检查是否需要清理缓存
+    const now = Date.now();
+    if (now - lastCleanupTime > CACHE_CLEANUP_INTERVAL) {
+      cleanupCache();
+      lastCleanupTime = now;
+    }
+    
     try {
       const {
         PROXY_HOSTNAME,

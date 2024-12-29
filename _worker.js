@@ -64,7 +64,7 @@ class LRUCache {
 // 全局内存缓存实例
 const MEMORY_CACHE = new LRUCache(10000); // 最大缓存容量为10,000
 
-const CACHE_CLEANUP_INTERVAL = 100000; // xx分钟清理一次缓存
+const CACHE_CLEANUP_INTERVAL = 60000; // xx分钟清理一次缓存
 
 // 定期清理过期的内存缓存
 function cleanupCache() {
@@ -388,13 +388,13 @@ async function checkRequestRate(ip, store, env) {
     return false;
   }
 
-  const windowMs = parseInt(env.RATE_LIMIT_WINDOW_MS) || 100 * 1000; // 时间窗口
-  const limit = parseInt(env.RATE_LIMIT_MAX_REQUESTS) || 20; // 默认 次数
+  const windowMs = parseInt(env.RATE_LIMIT_WINDOW_MS) || 60 * 1000; // 时间窗口
+  const limit = parseInt(env.RATE_LIMIT_MAX_REQUESTS) || 15; // 默认 次数
   const now = Date.now();
   const kvKey = `rate_limit:${ip}`;
 
   // 新增配置
-  const MAX_VIOLATIONS = parseInt(env.MAX_VIOLATIONS) || 5; // 最大违规次数
+  const MAX_VIOLATIONS = parseInt(env.MAX_VIOLATIONS) || 3; // 最大违规次数
   const BAN_DURATION_MS = parseInt(env.BAN_DURATION_MS) || 15 * 60 * 1000; // 屏蔽时长，例如 15 分钟
 
   try {
@@ -448,8 +448,8 @@ async function checkRequestRate(ip, store, env) {
         record.count = 0;
         record.violations = 0;
       } else {
-        // 未达到最大违规次数，设置短期屏蔽（例如 1 分钟）
-        record.blockUntil = now + 60 * 1000; // 1 分钟
+        // 未达到最大违规次数，设置短期屏蔽
+        record.blockUntil = now + 45 * 1000; // 
       }
     }
 

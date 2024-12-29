@@ -404,29 +404,35 @@ async function checkRequestRate(ip, store, env) {
     if (!record) {
       // 如果内存中没有，从 KV 中读取
       record = await store.get(kvKey, { type: "json" });
-
+    
       if (record) {
-        // 如果时间窗口已过期，重置计数和违规次数
-        if (now - record.timestamp > windowMs) {
-          record = null;
+        // 如果时间窗口已过期，重置部分字段，保留violations和blockUntil
+        if (now - record.timestamp > windowMs + 5000) {
+          record = {
+            count: 0,
+            timestamp: now,
+            windowMs: windowMs,
+            lastKvUpdate: now,
+            violations: record.violations,  // 保留原有的违规次数
+            blockUntil: record.blockUntil,  // 保留原有的阻止时间
+          };
         }
-      }
-
-      // 如果没有记录或已过期，创建新记录
-      if (!record) {
+      } else {
+        // 如果没有记录，创建全新记录
         record = {
           count: 0,
           timestamp: now,
           windowMs: windowMs,
           lastKvUpdate: now,
-          violations: 0, // 新增字段
-          blockUntil: 0, // 新增字段
+          violations: 0,
+          blockUntil: 0,
         };
       }
-
+    
       // 放入内存缓存
       MEMORY_CACHE.set(ip, record);
     }
+
 
     // 检查是否在屏蔽期内
     if (record.blockUntil && now < record.blockUntil) {

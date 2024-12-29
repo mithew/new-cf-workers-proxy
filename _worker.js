@@ -70,7 +70,7 @@ const CACHE_CLEANUP_INTERVAL = 300000; // xx分钟清理一次缓存
 function cleanupCache() {
   const now = Date.now();
   for (const [ip, data] of MEMORY_CACHE.cache.entries()) {
-    if (now - data.timestamp > data.windowMs && now > (data.blockUntil || 0)) {
+    if (now - data.timestamp > data.windowMs * 30 && now > (data.blockUntil || 0)) {
       MEMORY_CACHE.delete(ip);
     }
   }
@@ -406,8 +406,8 @@ async function checkRequestRate(ip, store, env) {
       record = await store.get(kvKey, { type: "json" });
 
       if (record) {
-        // 如果时间窗口已过期，重置计数和违规次数
-        if (now - record.timestamp > windowMs) {
+        // 如果时间窗口已过期很久，重置计数和违规次数
+        if (now - record.timestamp > windowMs * 30) {
           record = null;
         }
       }

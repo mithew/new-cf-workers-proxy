@@ -64,7 +64,7 @@ class LRUCache {
 // 全局内存缓存实例
 const MEMORY_CACHE = new LRUCache(10000); // 最大缓存容量为10,000
 
-const CACHE_CLEANUP_INTERVAL = 60000; // xx分钟清理一次缓存
+const CACHE_CLEANUP_INTERVAL = 100000; // xx分钟清理一次缓存
 
 // 定期清理过期的内存缓存
 function cleanupCache() {
@@ -388,8 +388,8 @@ async function checkRequestRate(ip, store, env) {
     return false;
   }
 
-  const windowMs = parseInt(env.RATE_LIMIT_WINDOW_MS) || 60 * 1000; // 默认 1分钟
-  const limit = parseInt(env.RATE_LIMIT_MAX_REQUESTS) || 15; // 默认 15次
+  const windowMs = parseInt(env.RATE_LIMIT_WINDOW_MS) || 100 * 1000; // 时间窗口
+  const limit = parseInt(env.RATE_LIMIT_MAX_REQUESTS) || 20; // 默认 次数
   const now = Date.now();
   const kvKey = `rate_limit:${ip}`;
 

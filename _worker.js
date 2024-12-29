@@ -64,7 +64,7 @@ class LRUCache {
 // 全局内存缓存实例
 const MEMORY_CACHE = new LRUCache(10000); // 最大缓存容量为10,000
 
-const CACHE_CLEANUP_INTERVAL = 60000; // 1分钟清理一次缓存
+const CACHE_CLEANUP_INTERVAL = 3600000; // xx分钟清理一次缓存
 
 // 定期清理过期的内存缓存
 function cleanupCache() {
@@ -427,8 +427,8 @@ async function checkRequestRate(ip, store, env) {
 
     // 判断是否需要更新 KV
     const shouldUpdateKV = 
-      record.count % 10 === 0 || 
-      (now - record.lastKvUpdate) > 10000; // 每10次请求或10秒更新一次
+      record.count % 25 === 0 || 
+      (now - record.lastKvUpdate) > 25000; // 每xx次请求或xx秒更新一次
 
     if (shouldUpdateKV) {
       await store.put(kvKey, JSON.stringify({

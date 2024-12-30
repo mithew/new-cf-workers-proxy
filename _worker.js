@@ -60,19 +60,26 @@ class LRUCache {
 // 全局内存缓存实例
 const MEMORY_CACHE = new LRUCache(1000); // 最大缓存容量 
 
-const CACHE_CLEANUP_INTERVAL = 25000; // 清理缓存时间
+const CACHE_CLEANUP_INTERVAL = 60000; // 清理缓存时间
 
 // 定期清理过期的内存缓存
 function cleanupCache() {
   const now = Date.now();
   for (const [ip, data] of MEMORY_CACHE.cache.entries()) {
     if (data.kvwrite === 0) {
-      // 逻辑1: kvwrite 为0时,比时间窗口多5秒才删除  
-      if (now - data.timestamp > data.windowMs + 5000 && now > (data.blockUntil || 0)) {
+      // 逻辑1: kvwrite 为0时，删除  
+      if (now - data.timestamp > data.windowMs - 3000 && now > (data.blockUntil || 0)) {
         MEMORY_CACHE.delete(ip);
       }
+    } else {
+      // 逻辑2: kvwrite 不为0时,重置部分字段
+      if (now - data.timestamp > data.windowMs - 3000 && now > (data.blockUntil || 0)) {
+        MEMORY_CACHE.set(ip, {
+          ...data,               // 继承旧数据的其他字段
+          count: 0              // 重置计数
+        });
+      }
     }
-    // 逻辑2: kvwrite 不为0时,不执行删除
   }
 }
 
@@ -408,7 +415,7 @@ async function checkRequestRate(ip, store, env) {
     
       if (record) {
         // 如果时间窗口已过期，重置部分字段，保留violations 等等
-        if (now - record.timestamp > windowMs + 5000) {
+        if (now - record.timestamp > windowMs - 3000) {
           record = {
             count: 0,
             timestamp: now,

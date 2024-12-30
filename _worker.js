@@ -472,8 +472,20 @@ async function checkRequestRate(ip, store, env) {
     const shouldUpdateKV = violationsChanged 
 
     if (shouldUpdateKV) {
+      // 转换时间戳为北京时间字符串
+      const blockUntilDate = new Date(record.blockUntil);
+      const blockUntilStr = blockUntilDate.toLocaleString('zh-CN', {
+        timeZone: 'Asia/Shanghai',
+        year: 'numeric',
+        month: '2-digit', 
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    
       await store.put(kvKey, JSON.stringify({
         kvwrite: record.kvwrite + 1,
+        blockUntilStr: blockUntilStr, // 新增字段
         count: record.count,
         violations: record.violations,
         timestamp: record.timestamp,
@@ -483,6 +495,7 @@ async function checkRequestRate(ip, store, env) {
       });
       violationsChanged = false;
     }
+
 
     // 更新内存缓存
     MEMORY_CACHE.set(ip, record);

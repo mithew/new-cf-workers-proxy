@@ -185,21 +185,36 @@ async function replaceResponseText(originalResponse, proxyHostname, pathnameRege
  * @returns {Promise<string>}
  */
 async function nginx() {
-  // 生成随机的服务器信息
-  const generateServerInfo = () => {
-    const servers = ['nginx/1.20.1', 'Apache/2.4.41', 'LiteSpeed/6.0.11'];
-    const os = ['Ubuntu Server 20.04 LTS', 'CentOS 8.4', 'Debian 11'];
-    const domains = ['us-east.server.net', 'eu-central.server.net', 'asia-east.server.net'];
-    return {
-      server: servers[Math.floor(Math.random() * servers.length)],
-      os: os[Math.floor(Math.random() * os.length)],
-      domain: domains[Math.floor(Math.random() * domains.length)],
-      uptime: Math.floor(Math.random() * 300) + ' days',
-      load: (Math.random() * 2).toFixed(2)
-    };
+  const serverInfo = {
+    server: 'LiteSpeed/6.0.11',
+    os: 'Ubuntu Server 20.04 LTS', 
+    domain: 'eu-central.server.net',
+    load: '0.35',
+    protocol: 'HTTP/2.0',
+    tls: 'TLS 1.3',
+    clientIp: '149.39.66.2'
   };
 
-  const serverInfo = generateServerInfo();
+  // 获取当前日期是一年中的第几天(1-365)
+  const now = new Date();
+  const start = new Date(now.getFullYear(), 0, 0);
+  const diff = now - start;
+  const oneDay = 1000 * 60 * 60 * 24;
+  const dayOfYear = Math.floor(diff / oneDay);
+
+  return `
+Server: ${serverInfo.server}
+Operating System: ${serverInfo.os} 
+Domain: ${serverInfo.domain}
+Server Time: ${new Date().toUTCString()}
+System Uptime: ${dayOfYear}
+Load Average: ${serverInfo.load}
+Client IP: ${serverInfo.clientIp}
+Protocol: ${serverInfo.protocol}
+SSL/TLS Version: ${serverInfo.tls}
+`;
+}
+
 
   return `<!DOCTYPE html>
 <html lang="en">

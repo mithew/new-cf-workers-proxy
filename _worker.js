@@ -58,7 +58,7 @@ class LRUCache {
 }
 
 // 全局内存缓存实例
-const MEMORY_CACHE = new LRUCache(10000); // 最大缓存容量 
+const MEMORY_CACHE = new LRUCache(1000); // 最大缓存容量 
 
 const CACHE_CLEANUP_INTERVAL = 25000; // 清理缓存时间
 

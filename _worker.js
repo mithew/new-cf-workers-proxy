@@ -423,10 +423,12 @@ async function checkRequestRate(ip, store, env) {
     let record = MEMORY_CACHE.get(ip);
     let violationsChanged = false; // 检测violations 发生变化
 
-    if (!record) {
+    if (record) {
+      record.timestamp = Date.now(); // ■ 重置 timestamp 为当前时间
+    } else {
       // 如果内存中没有，从 KV 中读取
       record = await store.get(kvKey, { type: "json" });
-    
+
       if (record) {
         // 如果时间窗口已过期，重置部分字段，保留violations 等等
         if (now - record.timestamp > windowMs - 3000) {
@@ -450,7 +452,7 @@ async function checkRequestRate(ip, store, env) {
           kvwrite: 0,
         };
       }
-    
+
       // 放入内存缓存
       MEMORY_CACHE.set(ip, record);
     }

@@ -456,7 +456,7 @@ async function checkRequestRate(ip, store, env) {
       record.violations += 1;
       violationsChanged = true;  // 检测violations 发生变化
 
-      if (record.violations >= MAX_VIOLATIONS) {
+      if (record.violations > MAX_VIOLATIONS) {
         record.blockUntil = now + BAN_DURATION_MS; // 达到最大违规次数，使用最大屏蔽时间
         record.count = 0;
         record.violations = 0; // 最大屏蔽后，重置计数

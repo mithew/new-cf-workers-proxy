@@ -497,12 +497,12 @@ async function checkRequestRate(ip, store, env) {
       const blockUntilDate = new Date(record.blockUntil);
       const blockUntilStr = blockUntilDate.toLocaleString('zh-CN', {
         timeZone: 'Asia/Shanghai',
-        year: 'numeric',
         month: '2-digit', 
         day: '2-digit',
         hour: '2-digit',
         minute: '2-digit'
-      });
+      }).replace(' ', '//'); // ■ 将空格替换为双斜杠
+
     
       await store.put(kvKey, JSON.stringify({
         kvwrite: record.kvwrite + 1,

@@ -413,7 +413,6 @@ async function checkRequestRate(ip, store, env) {
             count: 0,
             timestamp: now,
             windowMs: windowMs,
-            lastKvUpdate: now,
             violations: record.violations,  
             blockUntil: record.blockUntil,  
             kvwrite: record.kvwrite,  
@@ -425,7 +424,6 @@ async function checkRequestRate(ip, store, env) {
           count: 0,
           timestamp: now,
           windowMs: windowMs,
-          lastKvUpdate: now,
           violations: 0,
           blockUntil: 0,
           kvwrite: 0,
@@ -474,7 +472,6 @@ async function checkRequestRate(ip, store, env) {
       }), {
         expirationTtl: 28800 // KV 存储过期清理时间
       });
-      record.lastKvUpdate = now;
       violationsChanged = false;
     }
 

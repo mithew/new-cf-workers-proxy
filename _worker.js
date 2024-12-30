@@ -454,15 +454,17 @@ async function checkRequestRate(ip, store, env) {
     if (record.count > limit) {
       // 超过限制，增加违规次数
       record.violations += 1;
-      violationsChanged = true;  // 检测violations 发生变化
-
+      violationsChanged = true; // 检测violations 发生变化
+    
+      // 计算 blockUntil 的倍数
+      const multiplier = Math.floor(record.kvwrite / 5) + 1;  // 每5次增加1倍
+      
       if (record.violations > MAX_VIOLATIONS) {
-        record.blockUntil = now + BAN_DURATION_MS; // 达到最大违规次数，使用最大屏蔽时间
+        record.blockUntil = now + (BAN_DURATION_MS * multiplier); // 达到最大违规次数，使用最大屏蔽时间
         record.count = 0;
         record.violations = 0; // 最大屏蔽后，重置计数
       } else {
-        // 未达到最大违规次数，设置短期屏蔽
-        record.blockUntil = now + 60 * 1000; // 
+        record.blockUntil = now + (60 * 1000 * multiplier); // 短期屏蔽，基础封禁时间乘以倍数
       }
     }
 

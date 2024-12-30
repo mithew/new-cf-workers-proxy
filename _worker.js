@@ -66,26 +66,19 @@ const CACHE_CLEANUP_INTERVAL = 60000; // 清理缓存时间
 function cleanupCache() {
   const now = Date.now();
   for (const [ip, data] of MEMORY_CACHE.cache.entries()) {
-    if (data.kvwrite === 0) {
-      // 逻辑1: kvwrite为0时 
-      if (now - data.timestamp > data.windowMs - 3000 && now > (data.blockUntil || 0)) {
-        MEMORY_CACHE.delete(ip);
-      }
-    } else {
-      // kvwrite不为0的情况
-      if (now - data.timestamp > data.windowMs * 60 * 8) {
-        // 逻辑2: 时间超过windowMs的xx倍则删除
-        MEMORY_CACHE.delete(ip);
-      } else if (now - data.timestamp > data.windowMs - 3000) {
-        // 逻辑3: 时间超过windowMs-3秒则重置count
-        MEMORY_CACHE.set(ip, {
-          ...data,  // 继承旧数据的其他字段
-          count: 0  // 重置计数
-        });
-      }
+    const timeDiff = now - data.timestamp;
+
+    if (timeDiff > 8 * 60 * 60 * 1000) { // ■ 如果时间差大于8小时，则删除
+      MEMORY_CACHE.delete(ip);
+    } else if (timeDiff > data.windowMs - 3000) { // ■ 如果时间差大于 windowMs - 3秒，则重置计数
+      MEMORY_CACHE.set(ip, {
+        ...data,  // ■ 继承旧数据的其他字段
+        count: 0  // ■ 重置计数
+      });
     }
   }
 }
+  
 
 // 记录上次清理缓存的时间
 let lastCleanupTime = 0;

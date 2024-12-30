@@ -404,6 +404,7 @@ async function checkRequestRate(ip, store, env) {
   try {
     // 从内存缓存中获取记录
     let record = MEMORY_CACHE.get(ip);
+    let violationsChanged = false; // 检测violations 发生变化
 
     if (!record) {
       // 如果内存中没有，从 KV 中读取
@@ -450,13 +451,12 @@ async function checkRequestRate(ip, store, env) {
     if (record.count > limit) {
       // 超过限制，增加违规次数
       record.violations += 1;
+      violationsChanged = true;  // 检测violations 发生变化
 
       if (record.violations >= MAX_VIOLATIONS) {
-        // 达到最大违规次数，使用最大屏蔽时间
-        record.blockUntil = now + BAN_DURATION_MS;
-        // 最大屏蔽后，重置计数
+        record.blockUntil = now + BAN_DURATION_MS; // 达到最大违规次数，使用最大屏蔽时间
         record.count = 0;
-        record.violations = 0;
+        record.violations = 0; // 最大屏蔽后，重置计数
       } else {
         // 未达到最大违规次数，设置短期屏蔽
         record.blockUntil = now + 60 * 1000; // 
@@ -464,9 +464,7 @@ async function checkRequestRate(ip, store, env) {
     }
 
     // 判断是否需要更新 KV
-    const shouldUpdateKV = 
-      record.count % 25 === 0 || 
-      (now - record.lastKvUpdate) > 25000; // 每25次请求或25秒更新一次
+    const shouldUpdateKV = violationsChanged 
 
     if (shouldUpdateKV) {
       await store.put(kvKey, JSON.stringify({
@@ -475,9 +473,10 @@ async function checkRequestRate(ip, store, env) {
         violations: record.violations,
         blockUntil: record.blockUntil
       }), {
-        expirationTtl: 3600 // KV 存储过期清理时间 60分钟
+        expirationTtl: 28800 // KV 存储过期清理时间
       });
       record.lastKvUpdate = now;
+      violationsChanged = false;
     }
 
     // 更新内存缓存

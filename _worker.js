@@ -494,7 +494,7 @@ async function checkRequestRate(ip, store, env) {
         day: '2-digit',
         hour: '2-digit',
         minute: '2-digit'
-      }).replace(' ', '//'); // ■ 将空格替换为双斜杠
+      }).replace(' ', '-'); // ■ 将空格替换 
 
     
       await store.put(kvKey, JSON.stringify({

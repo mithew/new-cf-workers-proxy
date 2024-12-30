@@ -471,11 +471,11 @@ async function checkRequestRate(ip, store, env) {
 
     if (shouldUpdateKV) {
       await store.put(kvKey, JSON.stringify({
+        kvwrite: record.kvwrite + 1,
         count: record.count,
-        timestamp: record.timestamp,
         violations: record.violations,
-        blockUntil: record.blockUntil,
-        kvwrite: record.kvwrite + 1
+        timestamp: record.timestamp,
+        blockUntil: record.blockUntil
       }), {
         expirationTtl: 28800 // KV 存储过期清理时间
       });

@@ -60,14 +60,22 @@ class LRUCache {
 // 全局内存缓存实例
 const MEMORY_CACHE = new LRUCache(10000); // 最大缓存容量 
 
-const CACHE_CLEANUP_INTERVAL = 50000; // 清理缓存时间
+const CACHE_CLEANUP_INTERVAL = 25000; // 清理缓存时间
 
 // 定期清理过期的内存缓存
 function cleanupCache() {
   const now = Date.now();
   for (const [ip, data] of MEMORY_CACHE.cache.entries()) {
-    if (now - data.timestamp > data.windowMs && now > (data.blockUntil || 0)) {
-      MEMORY_CACHE.delete(ip);
+    if (data.violations === 0) {
+      // 逻辑1: violations 为0时,比时间窗口多5秒才删除
+      if (now - data.timestamp > data.windowMs + 5000 && now > (data.blockUntil || 0)) {
+        MEMORY_CACHE.delete(ip);
+      }
+    } else {
+      // 逻辑2: violations 不为0时,超过时间窗口的30倍才删除  
+      if (now - data.timestamp > data.windowMs * 30 && now > (data.blockUntil || 0)) {
+        MEMORY_CACHE.delete(ip);
+      }
     }
   }
 }

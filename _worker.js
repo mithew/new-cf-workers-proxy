@@ -6,7 +6,6 @@ class LRUCache {
   }
 
   /**
-   * 获取缓存中的记录，并将其移到 Map 的末尾以表示最近使用
    * @param {string} key 
    * @returns {object|null}
    */
@@ -15,14 +14,12 @@ class LRUCache {
       return null;
     }
     const value = this.cache.get(key);
-    // 将键移到 Map 的末尾，表示最近使用
     this.cache.delete(key);
     this.cache.set(key, value);
     return value;
   }
 
   /**
-   * 设置缓存记录，并在超过最大容量时移除最少使用的记录
    * @param {string} key 
    * @param {object} value 
    */
@@ -30,7 +27,6 @@ class LRUCache {
     if (this.cache.has(key)) {
       this.cache.delete(key);
     } else if (this.cache.size >= this.maxSize) {
-      // 移除最先插入的键，即最少使用的键
       const firstKey = this.cache.keys().next().value;
       this.cache.delete(firstKey);
     }
@@ -62,9 +58,9 @@ class LRUCache {
 }
 
 // 全局内存缓存实例
-const MEMORY_CACHE = new LRUCache(10000); // 最大缓存容量为10,000
+const MEMORY_CACHE = new LRUCache(10000); // 最大缓存容量 
 
-const CACHE_CLEANUP_INTERVAL = 50000; // 清理一次缓存
+const CACHE_CLEANUP_INTERVAL = 50000; // 清理缓存时间
 
 // 定期清理过期的内存缓存
 function cleanupCache() {
@@ -389,13 +385,13 @@ async function checkRequestRate(ip, store, env) {
   }
 
   const windowMs = parseInt(env.RATE_LIMIT_WINDOW_MS) || 60 * 1000; // 时间窗口
-  const limit = parseInt(env.RATE_LIMIT_MAX_REQUESTS) || 15; // 默认 次数
+  const limit = parseInt(env.RATE_LIMIT_MAX_REQUESTS) || 15; // 允许请求次数
   const now = Date.now();
   const kvKey = `rate_limit:${ip}`;
 
   // 新增配置
   const MAX_VIOLATIONS = parseInt(env.MAX_VIOLATIONS) || 3; // 最大违规次数
-  const BAN_DURATION_MS = parseInt(env.BAN_DURATION_MS) || 15 * 60 * 1000; // 屏蔽时长，例如 15 分钟
+  const BAN_DURATION_MS = parseInt(env.BAN_DURATION_MS) || 15 * 60 * 1000; // 最大屏蔽时长
 
   try {
     // 从内存缓存中获取记录
@@ -413,8 +409,8 @@ async function checkRequestRate(ip, store, env) {
             timestamp: now,
             windowMs: windowMs,
             lastKvUpdate: now,
-            violations: record.violations,  // 保留原有的违规次数
-            blockUntil: record.blockUntil,  // 保留原有的阻止时间
+            violations: record.violations,  
+            blockUntil: record.blockUntil,  
           };
         }
       } else {
@@ -448,9 +444,9 @@ async function checkRequestRate(ip, store, env) {
       record.violations += 1;
 
       if (record.violations >= MAX_VIOLATIONS) {
-        // 达到最大违规次数，设置屏蔽时间
+        // 达到最大违规次数，使用最大屏蔽时间
         record.blockUntil = now + BAN_DURATION_MS;
-        // 重置计数和违规次数
+        // 最大屏蔽后，重置计数
         record.count = 0;
         record.violations = 0;
       } else {
@@ -478,9 +474,6 @@ async function checkRequestRate(ip, store, env) {
 
     // 更新内存缓存
     MEMORY_CACHE.set(ip, record);
-
-    // 返回是否被限制
-    return record.count > limit || (record.blockUntil && now < record.blockUntil);
 
   } catch (error) {
     console.error(`Rate limit check error for IP ${ip}: ${error.message}`);

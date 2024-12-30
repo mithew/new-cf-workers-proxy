@@ -66,17 +66,13 @@ const CACHE_CLEANUP_INTERVAL = 25000; // 清理缓存时间
 function cleanupCache() {
   const now = Date.now();
   for (const [ip, data] of MEMORY_CACHE.cache.entries()) {
-    if (data.violations === 0) {
-      // 逻辑1: violations 为0时,比时间窗口多5秒才删除
+    if (data.kvwrite === 0) {
+      // 逻辑1: kvwrite 为0时,比时间窗口多5秒才删除  
       if (now - data.timestamp > data.windowMs + 5000 && now > (data.blockUntil || 0)) {
         MEMORY_CACHE.delete(ip);
       }
-    } else {
-      // 逻辑2: violations 不为0时,超过时间窗口的30倍才删除  
-      if (now - data.timestamp > data.windowMs * 30 && now > (data.blockUntil || 0)) {
-        MEMORY_CACHE.delete(ip);
-      }
     }
+    // 逻辑2: kvwrite 不为0时,不执行删除
   }
 }
 
@@ -411,7 +407,7 @@ async function checkRequestRate(ip, store, env) {
       record = await store.get(kvKey, { type: "json" });
     
       if (record) {
-        // 如果时间窗口已过期，重置部分字段，保留violations和blockUntil
+        // 如果时间窗口已过期，重置部分字段，保留violations 等等
         if (now - record.timestamp > windowMs + 5000) {
           record = {
             count: 0,
@@ -420,6 +416,7 @@ async function checkRequestRate(ip, store, env) {
             lastKvUpdate: now,
             violations: record.violations,  
             blockUntil: record.blockUntil,  
+            kvwrite: record.kvwrite,  
           };
         }
       } else {
@@ -431,6 +428,7 @@ async function checkRequestRate(ip, store, env) {
           lastKvUpdate: now,
           violations: 0,
           blockUntil: 0,
+          kvwrite: 0,
         };
       }
     
@@ -471,7 +469,8 @@ async function checkRequestRate(ip, store, env) {
         count: record.count,
         timestamp: record.timestamp,
         violations: record.violations,
-        blockUntil: record.blockUntil
+        blockUntil: record.blockUntil,
+        kvwrite: record.kvwrite + 1
       }), {
         expirationTtl: 28800 // KV 存储过期清理时间
       });
